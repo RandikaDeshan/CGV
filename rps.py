@@ -1,102 +1,187 @@
-def _init_(self):
+class RPSGame:
+    def _init_(self):
     # Game state
-    self.state = "waiting"  # "waiting", "countdown", "playing", "result"
-    self.countdown_start = 0
-    self.countdown_duration = 3
-    self.user_gesture = None
-    self.computer_gesture = None
-    self.result = None
-    self.score = {"user": 0, "computer": 0, "ties": 0}
-                  def start_game(self):
-    self.state = "countdown"
-    self.countdown_start = time.time()
-    self.status_label.config(text="Get Ready!")
-    self.instruction_label.config(text="Show your gesture on 'Shoot!'")
-    self.start_button.config(state="disabled")
-
-def update(self):
-    ret, frame = self.cap.read()
-    
-    if ret:
-        # Flip frame horizontally for a more natural view
-        frame = cv2.flip(frame, 1)
+        self.state = "waiting"  # "waiting", "countdown", "playing", "result"
+        self.countdown_start = 0
+        self.countdown_duration = 3
+        self.user_gesture = None
+        self.computer_gesture = None
+        self.result = None
+        self.score = {"user": 0, "computer": 0, "ties": 0}
+                    def start_game(self):
+        self.state = "countdown"
+        self.countdown_start = time.time()
+        self.status_label.config(text="Get Ready!")
+        self.instruction_label.config(text="Show your gesture on 'Shoot!'")
+        self.start_button.config(state="disabled")
+    def setup_gui(self):
+        self.root = tk.Tk()
+        self.root.title("Rock Paper Scissors Game")
+        self.root.geometry("1200x700")
+        self.root.resizable(False, False)
         
-        # Process frame
-        processed_frame, gesture = self.process_frame(frame)
+        # Main frame
+        main_frame = ttk.Frame(self.root)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        # State machine for game flow
-        if self.state == "countdown":
-            elapsed = time.time() - self.countdown_start
-            if elapsed < self.countdown_duration:
-                count = self.countdown_duration - int(elapsed)
- self.status_label.config(text=f"Get Ready! {count}")
+        # Left panel for camera feed
+        self.left_panel = ttk.LabelFrame(main_frame, text="Camera Feed")
+        self.left_panel.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        
+        self.camera_label = ttk.Label(self.left_panel)
+        self.camera_label.pack(padx=10, pady=10)
+        
+        # Right panel for game info and processing steps
+        right_panel = ttk.Frame(main_frame)
+        right_panel.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
+        
+        # Game status frame
+        game_frame = ttk.LabelFrame(right_panel, text="Game Status")
+        game_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        self.status_label = ttk.Label(game_frame, text="Say 'Rock, Paper, Scissors, Shoot!'", font=("Arial", 14))
+        self.status_label.pack(pady=10)
+        
+        self.instruction_label = ttk.Label(game_frame, text="Press 'Start Game' to begin", font=("Arial", 12))
+        self.instruction_label.pack(pady=5)
+        
+        # Results frame
+        results_frame = ttk.Frame(game_frame)
+        results_frame.pack(pady=10)
+        
+        ttk.Label(results_frame, text="You:", font=("Arial", 12)).grid(row=0, column=0, padx=5)
+        self.user_choice_label = ttk.Label(results_frame, text="-", font=("Arial", 12))
+        self.user_choice_label.grid(row=0, column=1, padx=5)
+        
+        ttk.Label(results_frame, text="Computer:", font=("Arial", 12)).grid(row=1, column=0, padx=5)
+        self.computer_choice_label = ttk.Label(results_frame, text="-", font=("Arial", 12))
+        self.computer_choice_label.grid(row=1, column=1, padx=5)
+        
+        ttk.Label(results_frame, text="Result:", font=("Arial", 12)).grid(row=2, column=0, padx=5)
+        self.result_label = ttk.Label(results_frame, text="-", font=("Arial", 12))
+        self.result_label.grid(row=2, column=1, padx=5)
+        
+        # Score frame
+        score_frame = ttk.LabelFrame(game_frame, text="Score")
+        score_frame.pack(pady=10, fill=tk.X)
+        
+        ttk.Label(score_frame, text="You:").grid(row=0, column=0, padx=10)
+        self.user_score_label = ttk.Label(score_frame, text="0")
+        self.user_score_label.grid(row=0, column=1, padx=10)
+        
+        ttk.Label(score_frame, text="Computer:").grid(row=0, column=2, padx=10)
+        self.comp_score_label = ttk.Label(score_frame, text="0")
+        self.comp_score_label.grid(row=0, column=3, padx=10)
+        
+        ttk.Label(score_frame, text="Ties:").grid(row=0, column=4, padx=10)
+        self.ties_score_label = ttk.Label(score_frame, text="0")
+        self.ties_score_label.grid(row=0, column=5, padx=10)
+        
+        # Button frame
+        button_frame = ttk.Frame(game_frame)
+        button_frame.pack(pady=10)
+        
+        self.start_button = ttk.Button(button_frame, text="Start Game", command=self.start_game)
+        self.start_button.grid(row=0, column=0, padx=5)
+        
+        self.reset_button = ttk.Button(button_frame, text="Reset Score", command=self.reset_score)
+        self.reset_button.grid(row=0, column=1, padx=5)
+        
+        # Processing steps frame
+        processing_frame = ttk.LabelFrame(right_panel, text="Image Processing Steps")
+        processing_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        self.processing_canvas = tk.Canvas(processing_frame, height=300)
+        self.processing_canvas.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Configure grid
+        main_frame.columnconfigure(0, weight=3)
+        main_frame.columnconfigure(1, weight=2)
+        main_frame.rowconfigure(0, weight=1)
+        
+    def update(self):
+        ret, frame = self.cap.read()
+        
+        if ret:
+            # Flip frame horizontally for a more natural view
+            frame = cv2.flip(frame, 1)
+            
+            # Process frame
+            processed_frame, gesture = self.process_frame(frame)
+            
+            # State machine for game flow
+            if self.state == "countdown":
+                elapsed = time.time() - self.countdown_start
+                if elapsed < self.countdown_duration:
+                    count = self.countdown_duration - int(elapsed)
+    self.status_label.config(text=f"Get Ready! {count}")
+                    
+                    # Draw countdown on frame
+                    cv2.putText(processed_frame, str(count), (frame.shape[1]//2 - 50, frame.shape[0]//2), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 8)
+                else:
+                    self.state = "playing"
+                    self.status_label.config(text="Rock, Paper, Scissors, Shoot!")
+                    
+                    # Show instruction for a brief moment
+                    cv2.putText(processed_frame, "SHOOT!", (frame.shape[1]//2 - 150, frame.shape[0]//2), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 255, 0), 6)
+                    
+                    # Schedule to capture and process result in 1 second
+                    self.root.after(1000, self.capture_result)
+            
+            elif self.state == "playing":
+                if gesture:
+                    self.user_gesture = gesture
+                    # This will be handled by capture_result
+            
+            elif self.state == "result":
+                # Display result overlay
+                self.display_result_overlay(processed_frame)
+                def capture_result(self):
+        if self.state == "playing":
+            # Determine computer's gesture
+            choices = ["rock", "paper", "scissors"]
+            self.computer_gesture = random.choice(choices)
+            
+            # Determine winner
+            if self.user_gesture in choices:
+                self.result = self.determine_winner(self.user_gesture, self.computer_gesture)
                 
-                # Draw countdown on frame
-                cv2.putText(processed_frame, str(count), (frame.shape[1]//2 - 50, frame.shape[0]//2), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 0, 255), 8)
+                # Update score
+                if self.result == "You Win!":
+                    self.score["user"] += 1
+                elif self.result == "Computer Wins!":
+                    self.score["computer"] += 1
+                else:  # Tie
+                    self.score["ties"] += 1
+                
+                self.update_score_display()
             else:
-                self.state = "playing"
-                self.status_label.config(text="Rock, Paper, Scissors, Shoot!")
-                
-                # Show instruction for a brief moment
-                cv2.putText(processed_frame, "SHOOT!", (frame.shape[1]//2 - 150, frame.shape[0]//2), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 255, 0), 6)
-                
-                # Schedule to capture and process result in 1 second
-                self.root.after(1000, self.capture_result)
-        
-        elif self.state == "playing":
-            if gesture:
-                self.user_gesture = gesture
-                # This will be handled by capture_result
-        
-        elif self.state == "result":
-            # Display result overlay
-            self.display_result_overlay(processed_frame)
-            def capture_result(self):
-    if self.state == "playing":
-        # Determine computer's gesture
-        choices = ["rock", "paper", "scissors"]
-        self.computer_gesture = random.choice(choices)
-        
-        # Determine winner
-        if self.user_gesture in choices:
-            self.result = self.determine_winner(self.user_gesture, self.computer_gesture)
+                self.result = "Invalid gesture"
+                self.user_gesture = "unknown"
             
-            # Update score
-            if self.result == "You Win!":
-                self.score["user"] += 1
-            elif self.result == "Computer Wins!":
-                self.score["computer"] += 1
-            else:  # Tie
-                self.score["ties"] += 1
+            # Update labels
+            self.user_choice_label.config(text=self.user_gesture.capitalize())
+            self.computer_choice_label.config(text=self.computer_gesture.capitalize())
+            self.result_label.config(text=self.result)
+
+            # Update status
+            self.status_label.config(text="Game Result")
+            self.instruction_label.config(text="Press 'Start Game' to play again")
             
-            self.update_score_display()
+            # Change state
+            self.state = "result"
+            
+            # Re-enable the start button after 2 seconds
+            self.root.after(2000, lambda: self.start_button.config(state="normal"))
+
+    def determine_winner(self, user_gesture, computer_gesture):
+        if user_gesture == computer_gesture:
+            return "Tie!"
+        elif (user_gesture == "rock" and computer_gesture == "scissors") or \
+            (user_gesture == "scissors" and computer_gesture == "paper") or \
+            (user_gesture == "paper" and computer_gesture == "rock"):
+            return "You Win!"
         else:
-            self.result = "Invalid gesture"
-            self.user_gesture = "unknown"
-        
-        # Update labels
-        self.user_choice_label.config(text=self.user_gesture.capitalize())
-        self.computer_choice_label.config(text=self.computer_gesture.capitalize())
-        self.result_label.config(text=self.result)
-
-        # Update status
-        self.status_label.config(text="Game Result")
-        self.instruction_label.config(text="Press 'Start Game' to play again")
-        
-        # Change state
-        self.state = "result"
-        
-        # Re-enable the start button after 2 seconds
-        self.root.after(2000, lambda: self.start_button.config(state="normal"))
-
-def determine_winner(self, user_gesture, computer_gesture):
-    if user_gesture == computer_gesture:
-        return "Tie!"
-    elif (user_gesture == "rock" and computer_gesture == "scissors") or \
-         (user_gesture == "scissors" and computer_gesture == "paper") or \
-         (user_gesture == "paper" and computer_gesture == "rock"):
-        return "You Win!"
-    else:
-        return "Computer Wins!"
+            return "Computer Wins!"
