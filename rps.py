@@ -9,16 +9,16 @@ from PIL import Image, ImageTk
 import os
 
 class RPSGame:
-    def __init__(self):
+
+    def _init_(self):
         # Initialize MediaPipe Hands
         self.mp_hands = mp.solutions.hands
-        self.hands = self.mp_hands.Hands(static_image_mode=False, 
-                                         max_num_hands=1, 
-                                         min_detection_confidence=0.5,
-                                         min_tracking_confidence=0.5)
+        self.hands = self.mp_hands.Hands(static_image_mode=False,
+                                     max_num_hands=1,
+                                     min_detection_confidence=0.5,
+                                     min_tracking_confidence=0.5)
         self.mp_drawing = mp.solutions.drawing_utils
-        
-        # Game state
+    # Game state
         self.state = "waiting"  # "waiting", "countdown", "playing", "result"
         self.countdown_start = 0
         self.countdown_duration = 3
@@ -387,9 +387,11 @@ class RPSGame:
         self.hands.close()
 
 
+
 if __name__ == "__main__":
     game = RPSGame()
     try:
         game.run()
     finally:
         game.cleanup()
+
