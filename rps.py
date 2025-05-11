@@ -1,5 +1,12 @@
 class RPSGame:
     def _init_(self):
+        # Initialize MediaPipe Hands
+        self.mp_hands = mp.solutions.hands
+        self.hands = self.mp_hands.Hands(static_image_mode=False,
+                                     max_num_hands=1,
+                                     min_detection_confidence=0.5,
+                                     min_tracking_confidence=0.5)
+        self.mp_drawing = mp.solutions.drawing_utils
     # Game state
         self.state = "waiting"  # "waiting", "countdown", "playing", "result"
         self.countdown_start = 0
@@ -185,3 +192,87 @@ class RPSGame:
             return "You Win!"
         else:
             return "Computer Wins!"
+
+    def process_frame(self, frame):
+    # Save original frame for display
+    original_frame = frame.copy()
+   
+    # Clear previous processing images
+    self.processing_images = []
+   
+    # Convert to RGB for MediaPipe
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    self.processing_images.append(("RGB", rgb_frame.copy()))
+   
+    # Convert to grayscale
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    self.processing_images.append(("Grayscale", cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2RGB)))
+   
+    # Apply Gaussian blur
+    blurred = cv2.GaussianBlur(gray_frame, (7, 7), 0)
+    self.processing_images.append(("Blurred", cv2.cvtColor(blurred, cv2.COLOR_GRAY2RGB)))
+   
+    # Apply thresholding
+    _, thresh = cv2.threshold(blurred, 60, 255, cv2.THRESH_BINARY_INV)
+    self.processing_images.append(("Thresholded", cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB)))
+   
+    # Find contours
+    contours_img = original_frame.copy()
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(contours_img, contours, -1, (0, 255, 0), 2)
+    self.processing_images.append(("Contours", contours_img))
+   
+    # Process with MediaPipe hands
+    results = self.hands.process(rgb_frame)
+   
+    # Draw hand landmarks
+    annotated_frame = original_frame.copy()
+    user_gesture = None
+   
+    if results.multi_hand_landmarks:
+        for hand_landmarks in results.multi_hand_landmarks:
+            self.mp_drawing.draw_landmarks(
+                annotated_frame,
+                hand_landmarks,
+                self.mp_hands.HAND_CONNECTIONS
+            )
+           
+            # Detect gesture if in the right state
+            if self.state == "playing":
+                user_gesture = self.detect_gesture(hand_landmarks)
+   
+    self.processing_images.append(("Hand Detection", annotated_frame))
+   
+    # Display processing steps
+    self.display_processing_steps()
+   
+    return annotated_frame, user_gesture
+def detect_gesture(self, hand_landmarks):
+    # Get fingertips and other landmarks
+    landmarks = []
+    for point in hand_landmarks.landmark:
+        landmarks.append((point.x, point.y, point.z))
+   
+    # Check if fingers are extended
+    # Thumb
+    thumb_tip = landmarks[4]
+    thumb_ip = landmarks[3]
+    thumb_extended = thumb_tip[0] < thumb_ip[0]  # For right hand
+   
+    # Other fingers
+    finger_tips = [8, 12, 16, 20]  # Index, middle, ring, pinky
+    finger_pips = [6, 10, 14, 18]  # Second joint of each finger
+   
+    extended_fingers = []
+    for tip, pip in zip(finger_tips, finger_pips):
+        extended_fingers.append(landmarks[tip][1] < landmarks[pip][1])
+   
+    # Determine gesture
+    if all(extended_fingers) and thumb_extended:
+        return "paper"
+    elif not any(extended_fingers) and not thumb_extended:
+        return "rock"
+    elif extended_fingers[0] and extended_fingers[1] and not extended_fingers[2] and not extended_fingers[3]:
+        return "scissors"
+    else:
+        return "unknown"
